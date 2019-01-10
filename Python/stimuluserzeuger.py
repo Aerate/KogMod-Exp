@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_dir', type=str, default="./wheatNumpy", help='Directory containing all .npy files')
+parser.add_argument('--distortion_level', type=int, default=4, help='Intensity Level of Distortion')
 FLAGS = parser.parse_args()
 
 origin_dimension = 30
@@ -18,17 +18,15 @@ def create_stimuli():
 
     origin_points_x, origin_points_y = create_origin_points()
 
-    #add corner points
+    distorted_points_x, distorted_points_y = distort_points(origin_points_x, origin_points_y)
 
 
-    x = range(49)
-    y = range(49)
+    #final_plus_corner_x = np.append(origin_points_x,[-25,-25,25,25,-15,-15,15,15])
+    #final_plus_corner_y = np.append(origin_points_y,[-25,25,-25,25,-15,15,-15,15])
 
-
-    final_plus_corner_x = np.append(origin_points_x,[-25,-25,25,25,-15,-15,15,15])
-    final_plus_corner_y = np.append(origin_points_y,[-25,25,-25,25,-15,15,-15,15])
     # Plot
-    plot_stimuli(final_plus_corner_x, final_plus_corner_y)
+    plot_stimuli(origin_points_x, origin_points_y, "original.png")
+    plot_stimuli(distorted_points_x, distorted_points_y, "distorted.png")
 
 
 def create_origin_points():
@@ -38,7 +36,7 @@ def create_origin_points():
     """
     return np.array([-9, -3, 3, 9, -6, 6, -3, 3, 0]), np.array([-9, -9, -9, -9, -3, -3, 3, 3, 9])
 
-def plot_stimuli(x, y):
+def plot_stimuli(x, y, name):
     """
 
     :param x:
@@ -48,8 +46,27 @@ def plot_stimuli(x, y):
     plt.axis("equal")
     plt.axis("off")
     plt.scatter(x, y)
-    plt.savefig('test.png')
+    plt.savefig(name)
+    plt.gcf().clear()
 
+
+def distort_points(xs, ys):
+    """
+
+    :param x:
+    :param y:
+    :return:
+    """
+    distorted_xs = np.copy(xs)
+    distorted_ys = np.copy(ys)
+
+    for i in range(0, len(xs)):
+        distortion_area = get_distortion_area(3)
+        distortion_offset_x, distortion_offset_y = get_distortion_offsets(distortion_area)
+        distorted_xs[i] += distortion_offset_x
+        distorted_ys[i] += distortion_offset_y
+
+    return distorted_xs, distorted_ys
 
 def get_distortion_area(distortion_level):
     """
@@ -72,36 +89,6 @@ def get_distortion_area(distortion_level):
         counter += probability_table[table_index,i] * 1000
         if rand < counter:
             return i
-
-
-def distort_points(x, y):
-    """
-
-    :param x:
-    :param y:
-    :return:
-    """
-    distortion_area = get_distortion_area(1)
-    distortion_point = get_distortion_point(distortion_area)
-    distortion_offset_x, distortion_offset_y = get_distortion_offsets(distortion_point)
-
-
-def get_distortion_point(distortion_area):
-    """
-
-    :param distortion_area:
-    :return:
-    """
-    if distortion_area == 0:
-        return 0;
-    elif distortion_area == 1:
-        return np.random.randInt(1,10)
-    elif distortion_area == 2:
-        return np.random.randint(10, 25)
-    elif distortion_area == 3:
-        return np.random.randint(25, 100)
-    elif distortion_area == 4:
-        return np.random.randInt(100, 400)
 
 
 def get_distortion_offsets(distortion_area):
@@ -149,5 +136,3 @@ def generate_offset(inner_bound, outer_bound):
 
 
 create_stimuli()
-for i in range(10):
-    print(generate_offset(2,5))
