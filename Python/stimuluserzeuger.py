@@ -16,11 +16,10 @@ parser.add_argument('-nd', '--num_distortions', type=int, default=10,
                     help='Number of Distortion Images to create (default 10)')
 FLAGS = parser.parse_args()
 
-
 def create_stimuli():
     """
-
-    :return:
+    Creates a set of original + distorted point picture stimuli according to the given configuration parameters
+    :return: Avergae distortion over all distorted images
     """
     origin_points_x, origin_points_y = create_origin_points()
     plot_stimuli(origin_points_x, origin_points_y, FLAGS.original + "_original")
@@ -28,17 +27,18 @@ def create_stimuli():
     sum_distortion_all_pics = 0.0
     for i in range(0, FLAGS.num_distortions):
         distorted_points_x, distorted_points_y, average_distortion = distort_points(origin_points_x, origin_points_y)
+        avgdis_string = "%.2f" % average_distortion
         plot_stimuli(distorted_points_x, distorted_points_y, FLAGS.original + "_distorted_l" +
-                     str(FLAGS.distortion_level) + "_" + str(i))
+                     str(FLAGS.distortion_level) + "_avgDis(" + avgdis_string + ")_" + str(i))
         sum_distortion_all_pics += average_distortion
-        print(average_distortion)
-    print("Average over all: " + str(sum_distortion_all_pics / FLAGS.num_distortions))
+
+    return sum_distortion_all_pics / FLAGS.num_distortions
 
 
 def create_origin_points():
     """
-
-    :return:
+    Definition of original point data.
+    :return: Original point locations
     """
     if FLAGS.original == "triangle":
         return np.array([-9, -3, 3, 9, -6, 6, -3, 3, 0]), np.array([-9, -9, -9, -9, -3, -3, 3, 3, 9])
@@ -54,7 +54,7 @@ def create_origin_points():
 
 def plot_stimuli(x, y, name):
     """
-
+    Plots point data as scatter plot.
     :param x:
     :param y:
     :param name:
@@ -70,9 +70,9 @@ def plot_stimuli(x, y, name):
     axes.set_xlim([-25, 25])
     axes.set_ylim([-25, 25])
     plt.axis("equal")
-    #plt.axis("off")
-    #plt.xticks([])
-    #plt.yticks([])
+    plt.axis("off")
+    plt.xticks([])
+    plt.yticks([])
     plt.scatter(x_corner, y_corner, color='white')
     plt.scatter(x, y, color='black')
     plt.savefig(os.path.join(FLAGS.output_dir, name + "." + FLAGS.output_format))
@@ -81,7 +81,7 @@ def plot_stimuli(x, y, name):
 
 def distort_points(xs, ys):
     """
-
+    Distorts the given x/y coordinated according to probabilities given by the applied distortion level
     :param xs:
     :param ys:
     :return:
@@ -91,11 +91,19 @@ def distort_points(xs, ys):
 
     distortion_sum = 0.0
 
-    for i in range(0, len(xs)):
-        distortion_offset_x, distortion_offset_y = get_distortion_offsets(FLAGS.distortion_level - 1)
-        distorted_xs[i] += distortion_offset_x
-        distorted_ys[i] += distortion_offset_y
-        distortion_sum += np.sqrt(np.square(distortion_offset_x) + np.square(distortion_offset_y))
+    if FLAGS.distortion_level <= 8:
+        for i in range(0, len(xs)):
+            distortion_offset_x, distortion_offset_y = get_distortion_offsets(FLAGS.distortion_level)
+            distorted_xs[i] += distortion_offset_x
+            distorted_ys[i] += distortion_offset_y
+            distortion_sum += np.sqrt(np.square(distortion_offset_x) + np.square(distortion_offset_y))
+
+    else:
+        for i in range(0, len(xs)):
+            #Equally probable redistribution within the 900 original cells (30x30 grid)
+            distorted_xs[i] = np.random.randint(-15, 16)
+            distorted_ys[i] = np.random.randint(-15, 16)
+            distortion_sum += np.sqrt(np.square(xs[i] - distorted_xs[i]) + np.square(ys[i] - distorted_ys[i]))
 
     average_distortion = distortion_sum / len(xs)
     return distorted_xs, distorted_ys, average_distortion
@@ -103,7 +111,7 @@ def distort_points(xs, ys):
 
 def get_distortion_offsets(distortion_level):
     """
-
+    Calculates distortion offset for single point according to the probabilities implied by the distortion level
     :param distortion_level:
     :return:
     """
@@ -122,10 +130,17 @@ def get_distortion_offsets(distortion_level):
         elif distortion_area == 4:
             return generate_offset(5, 10)
 
+    elif distortion_level == 8:
+        #Equally probable distortion within 400 cells
+        x_offset = np.random.randint(-10, 11)
+        y_offset = np.random.randint(-10, 11)
+        return x_offset, y_offset
+
 
 def get_distortion_area(distortion_level):
     """
-
+    Randomly chooses applied distortion area implied by the probability table in
+    https://www.researchgate.net/publication/17137983_Perceived_Distance_and_the_Classification_of_Distorted_Patterns
     :param distortion_level:
     :return:
     """
@@ -141,14 +156,15 @@ def get_distortion_area(distortion_level):
     rand = np.random.rand(1) * 1000
     counter = 0.0;
     for i in range(5):
-        counter += probability_table[distortion_level,i] * 1000
+        counter += probability_table[distortion_level - 1, i] * 1000
         if rand < counter:
             return i
 
 
 def generate_offset(inner_bound, outer_bound):
     """
-
+    Generates random offset such that the offset remains within the defined bounds
+    (length of offset vector is greater than inner bound and smaller the outer bound)
     :param inner_bound:
     :param outer_bound:
     :return:
@@ -171,5 +187,10 @@ def generate_offset(inner_bound, outer_bound):
 
 
 #Execute main
-create_stimuli()
-print("Successfully created Stimuli: " + FLAGS.original)
+AVERAGE_DISTORTION = create_stimuli()
+print("Successfully created Stimuli: ")
+print("\tOriginal Form: " + FLAGS.original)
+print("\tNumber of Distortion-Images: " + str(FLAGS.num_distortions))
+print("\tDistortion Level: " + str(FLAGS.distortion_level))
+print("Average distortion over all generated Images: ")
+print("\t%.2f (Distance/Dot)" % AVERAGE_DISTORTION)
