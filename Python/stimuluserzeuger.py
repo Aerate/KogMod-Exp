@@ -4,7 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--distortion_level', type=int, default=4, help='Intensity Level of Distortion')
+parser.add_argument('-dl', '--distortion_level', type=int, default=4, help='Intensity Level of Distortion (1 - 9), Note: 7.7, 8.6, 9.7 are denoted as 7,8,9 respectively')
+parser.add_argument('-f', '--output_format', type=str, default="svg", help='Output Format, supported: svg or png')
+parser.add_argument('-dir', '--output_dir', type=str, default="./output", help='Output Location of Stimuli Images')
+parser.add_argument('-o', '--original', type=str, default="triangle", help='Original Form, supported: triangle, diamond, M, F, rand')
+parser.add_argument('-nd', '--num_distortions', type=int, default=10, help='Number of Distortion Images to create (default 10)')
 FLAGS = parser.parse_args()
 
 origin_dimension = 30
@@ -14,19 +18,12 @@ def create_stimuli():
 
     :return:
     """
-    number_of_points = origin_dimension * origin_dimension
-
     origin_points_x, origin_points_y = create_origin_points()
+    plot_stimuli(origin_points_x, origin_points_y, FLAGS.original + "_original")
 
-    distorted_points_x, distorted_points_y = distort_points(origin_points_x, origin_points_y)
-
-
-    #final_plus_corner_x = np.append(origin_points_x,[-25,-25,25,25,-15,-15,15,15])
-    #final_plus_corner_y = np.append(origin_points_y,[-25,25,-25,25,-15,15,-15,15])
-
-    # Plot
-    plot_stimuli(origin_points_x, origin_points_y, "original.png")
-    plot_stimuli(distorted_points_x, distorted_points_y, "distorted.png")
+    for i in range(0, FLAGS.num_distortions):
+        distorted_points_x, distorted_points_y = distort_points(origin_points_x, origin_points_y)
+        plot_stimuli(distorted_points_x, distorted_points_y, FLAGS.original + "_distorted_l" + str(FLAGS.distortion_level)+ "_" + str(i))
 
 
 def create_origin_points():
@@ -34,7 +31,9 @@ def create_origin_points():
 
     :return:
     """
-    return np.array([-9, -3, 3, 9, -6, 6, -3, 3, 0]), np.array([-9, -9, -9, -9, -3, -3, 3, 3, 9])
+    if FLAGS.original == "triangle":
+        return np.array([-9, -3, 3, 9, -6, 6, -3, 3, 0]), np.array([-9, -9, -9, -9, -3, -3, 3, 3, 9])
+
 
 def plot_stimuli(x, y, name):
     """
@@ -43,10 +42,14 @@ def plot_stimuli(x, y, name):
     :param y:
     :return:
     """
+    if not os.path.exists(FLAGS.output_dir):
+        os.makedirs(FLAGS.output_dir)
+
     plt.axis("equal")
     plt.axis("off")
     plt.scatter(x, y)
-    plt.savefig(name)
+    plt.savefig(os.path.join(FLAGS.output_dir, name + "." + FLAGS.output_format))
+
     plt.gcf().clear()
 
 
@@ -61,12 +64,13 @@ def distort_points(xs, ys):
     distorted_ys = np.copy(ys)
 
     for i in range(0, len(xs)):
-        distortion_area = get_distortion_area(3)
+        distortion_area = get_distortion_area(FLAGS.distortion_level - 1)
         distortion_offset_x, distortion_offset_y = get_distortion_offsets(distortion_area)
         distorted_xs[i] += distortion_offset_x
         distorted_ys[i] += distortion_offset_y
 
     return distorted_xs, distorted_ys
+
 
 def get_distortion_area(distortion_level):
     """
