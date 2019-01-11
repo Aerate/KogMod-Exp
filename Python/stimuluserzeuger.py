@@ -16,7 +16,6 @@ parser.add_argument('-nd', '--num_distortions', type=int, default=10,
                     help='Number of Distortion Images to create (default 10)')
 FLAGS = parser.parse_args()
 
-origin_dimension = 30
 
 def create_stimuli():
     """
@@ -26,10 +25,14 @@ def create_stimuli():
     origin_points_x, origin_points_y = create_origin_points()
     plot_stimuli(origin_points_x, origin_points_y, FLAGS.original + "_original")
 
+    sum_distortion_all_pics = 0.0
     for i in range(0, FLAGS.num_distortions):
-        distorted_points_x, distorted_points_y = distort_points(origin_points_x, origin_points_y)
+        distorted_points_x, distorted_points_y, average_distortion = distort_points(origin_points_x, origin_points_y)
         plot_stimuli(distorted_points_x, distorted_points_y, FLAGS.original + "_distorted_l" +
-                     str(FLAGS.distortion_level)+ "_" + str(i))
+                     str(FLAGS.distortion_level) + "_" + str(i))
+        sum_distortion_all_pics += average_distortion
+        print(average_distortion)
+    print("Average over all: " + str(sum_distortion_all_pics / FLAGS.num_distortions))
 
 
 def create_origin_points():
@@ -67,11 +70,11 @@ def plot_stimuli(x, y, name):
     axes.set_xlim([-25, 25])
     axes.set_ylim([-25, 25])
     plt.axis("equal")
-    plt.axis("off")
-    plt.xticks([])
-    plt.yticks([])
-    plt.scatter(x, y, color='black')
+    #plt.axis("off")
+    #plt.xticks([])
+    #plt.yticks([])
     plt.scatter(x_corner, y_corner, color='white')
+    plt.scatter(x, y, color='black')
     plt.savefig(os.path.join(FLAGS.output_dir, name + "." + FLAGS.output_format))
     plt.gcf().clear()
 
@@ -86,12 +89,16 @@ def distort_points(xs, ys):
     distorted_xs = np.copy(xs)
     distorted_ys = np.copy(ys)
 
+    distortion_sum = 0.0
+
     for i in range(0, len(xs)):
-        distortion_offset_x, distortion_offset_y = get_distortion_offsets(FLAGS.distortion_level)
+        distortion_offset_x, distortion_offset_y = get_distortion_offsets(FLAGS.distortion_level - 1)
         distorted_xs[i] += distortion_offset_x
         distorted_ys[i] += distortion_offset_y
+        distortion_sum += np.sqrt(np.square(distortion_offset_x) + np.square(distortion_offset_y))
 
-    return distorted_xs, distorted_ys
+    average_distortion = distortion_sum / len(xs)
+    return distorted_xs, distorted_ys, average_distortion
 
 
 def get_distortion_offsets(distortion_level):
@@ -111,9 +118,9 @@ def get_distortion_offsets(distortion_level):
         elif distortion_area == 2:
             return generate_offset(1, 2)
         elif distortion_area == 3:
-            return generate_offset(2, 10)
+            return generate_offset(2, 5)
         elif distortion_area == 4:
-            return generate_offset(10, 20)
+            return generate_offset(5, 10)
 
 
 def get_distortion_area(distortion_level):
@@ -130,11 +137,11 @@ def get_distortion_area(distortion_level):
                                  [.2, .3, .4, .05, .05],
                                  [0, .4, .32, .15, .13],
                                  [0, .24, .16, .3, .3]])
-    table_index = 2
+
     rand = np.random.rand(1) * 1000
     counter = 0.0;
     for i in range(5):
-        counter += probability_table[table_index,i] * 1000
+        counter += probability_table[distortion_level,i] * 1000
         if rand < counter:
             return i
 
