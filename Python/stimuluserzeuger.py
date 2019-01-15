@@ -14,6 +14,8 @@ parser.add_argument('-o', '--original', type=str, default="triangle",
                     help='Original Form, supported: triangle, diamond, M, F, rand')
 parser.add_argument('-nd', '--num_distortions', type=int, default=10,
                     help='Number of Distortion Images to create (default 10)')
+parser.add_argument('-l', '--load_randoms', type=bool, default=True,
+                    help='Wheter to load existing random values or not')
 FLAGS = parser.parse_args()
 
 def create_stimuli():
@@ -47,9 +49,28 @@ def create_origin_points():
     if FLAGS.original == "M":
         return np.array([-8, -8, -8, -4, 0, 4, 8, 8, 8]), np.array([-8, 0, 8, 4, 0, 4, 8, 0, -8])
     if FLAGS.original == "F":
-        return np.array([-6, -6, -6, -6, -2, -2, 2, 2, 6]), np.array([-6, -2, 2, 6, 2, 6, 2, 6, 6])
+        return np.array([-4, -4, -4, -4, -2, -2, 0, 0, 2]), np.array([-6, -2, 2, 6, 2, 6, 2, 6, 6])
     if FLAGS.original == "random":
-        return np.random.randint(-15, 16, size=10), np.random.randint(-15, 16, size=10)
+        if FLAGS.load_randoms:
+            if os.path.isfile('./xs.npy'):
+                xs = np.load("./xs.npy")
+            else:
+                xs = np.random.randint(-15, 16, size=10)
+                np.save("./xs.npy", xs)
+
+            if os.path.isfile('./ys.npy'):
+                ys = np.load("./ys.npy")
+            else:
+                ys = np.random.randint(-15, 16, size=10)
+                np.save("./ys.npy", ys)
+
+            return xs, ys
+        else:
+            xs = np.random.randint(-15, 16, size=10)
+            ys = np.random.randint(-15, 16, size=10)
+            np.save("./xs.npy", xs)
+            np.save("./ys.npy", ys)
+        return xs, ys
 
 
 def plot_stimuli(x, y, name):
@@ -69,6 +90,7 @@ def plot_stimuli(x, y, name):
     axes = plt.gca()
     axes.set_xlim([-25, 25])
     axes.set_ylim([-25, 25])
+    plt.figure(figsize=(8, 8), dpi=80)
     plt.axis("equal")
     plt.axis("off")
     plt.xticks([])
@@ -186,6 +208,17 @@ def generate_offset(inner_bound, outer_bound):
             return x_offset, y_offset
 
 
+def write_stats(avg_dis):
+    file = open(os.path.join(FLAGS.output_dir, "stats.txt"), "w")
+    file.write("Successfully created Stimuli: \n")
+    file.write("\tOriginal Form: " + FLAGS.original + "\n")
+    file.write("\tNumber of Distortion-Images: " + str(FLAGS.num_distortions) + "\n")
+    file.write("\tDistortion Level: " + str(FLAGS.distortion_level) + "\n")
+    file.write("Average distortion over all generated Images: \n")
+    file.write("\t%.2f (Distance/Dot)" % avg_dis)
+    file.close()
+
+
 #Execute main
 AVERAGE_DISTORTION = create_stimuli()
 print("Successfully created Stimuli: ")
@@ -194,3 +227,4 @@ print("\tNumber of Distortion-Images: " + str(FLAGS.num_distortions))
 print("\tDistortion Level: " + str(FLAGS.distortion_level))
 print("Average distortion over all generated Images: ")
 print("\t%.2f (Distance/Dot)" % AVERAGE_DISTORTION)
+write_stats(AVERAGE_DISTORTION)

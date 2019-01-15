@@ -1,0 +1,6 @@
+Successfully created Stimuli: 
+	Original Form: F
+	Number of Distortion-Images: 6
+	Distortion Level: 5
+Average distortion over all generated Images: 
+	1.98 (Distance/Dot)
